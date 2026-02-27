@@ -113,8 +113,8 @@ export function preprocessImage(canvas: HTMLCanvasElement, invertPolarity = fals
   // Step 4: Trim border rows/columns that are >40% black (frame decorations).
   // Don't stop at the first light row — noisy frame texture has gaps.
   // Trim up to 40% max from each edge to avoid eating into text.
-  const BLACK_THRESH = 0.40
-  const MAX_TRIM_FRAC = 0.40
+  const BLACK_THRESH = 0.50
+  const MAX_TRIM_FRAC = 0.15
   let top = 0, bottom = h - 1, left = 0, right = w - 1
 
   // Trim top rows (skip noisy gaps)

@@ -8,7 +8,7 @@ const INFO_LINE_FRAC  = 0.06          // info line = bottom 6% of card height
 const MAX_OUT_WIDTH   = 1200          // cap output to avoid huge images
 
 // Name crop insets within the name bar (what actually gets OCR'd)
-export const NAME_CROP = { left: 0.02, top: 0.10, width: 0.90, height: 0.65 }
+export const NAME_CROP = { left: 0.07, top: 0.10, width: 0.70, height: 0.65 }
 
 export interface CaptureResult {
   nameBar: HTMLCanvasElement
