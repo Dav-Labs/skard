@@ -181,8 +181,8 @@ function bestLine(raw: string): string {
     // Filter out noise: must have at least one word of 3+ letters
     .filter((l) => /[a-zA-Z]{3,}/.test(l))
     .sort((a, b) => b.length - a.length)
-    // Strip leading/trailing single-char words (frame decoration artifacts like "t")
-    .map((l) => l.replace(/^(\S\s)+/, '').replace(/(\s\S)+$/, '').trim())
+    // Strip leading/trailing short words (1-2 chars) — frame decoration artifacts
+    .map((l) => l.replace(/^(\S{1,2}\s)+/, '').replace(/(\s\S{1,2})+$/, '').trim())
     [0] ?? ''
 }
 
