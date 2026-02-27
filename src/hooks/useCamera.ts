@@ -18,7 +18,7 @@ export function useCamera() {
   const [isActive, setIsActive] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [torch, setTorch] = useState(() => localStorage.getItem('skard:torch') === 'on')
-  const [zoom, setZoom] = useState(1)
+  const [zoom, setZoom] = useState(() => parseFloat(localStorage.getItem('skard:zoom') || '1'))
   const [zoomRange, setZoomRange] = useState<{ min: number; max: number } | null>(null)
 
   const start = useCallback(async () => {
@@ -41,6 +41,14 @@ export function useCamera() {
       const caps = track.getCapabilities() as MediaTrackCapabilities & { zoom?: { min: number; max: number; step: number } }
       if (caps.zoom) {
         setZoomRange({ min: caps.zoom.min, max: caps.zoom.max })
+        const savedZoom = parseFloat(localStorage.getItem('skard:zoom') || '1')
+        const clamped = Math.min(caps.zoom.max, Math.max(caps.zoom.min, savedZoom))
+        if (clamped > caps.zoom.min) {
+          try {
+            await track.applyConstraints({ advanced: [{ zoom: clamped } as MediaTrackConstraintSet] })
+            setZoom(clamped)
+          } catch { /* ignore */ }
+        }
       }
       // Apply saved torch preference — best-effort, not all devices support it
       const savedTorch = localStorage.getItem('skard:torch') === 'on'
@@ -153,6 +161,7 @@ export function useCamera() {
     try {
       await track.applyConstraints({ advanced: [{ zoom: clamped } as MediaTrackConstraintSet] })
       setZoom(clamped)
+      localStorage.setItem('skard:zoom', String(clamped))
     } catch {
       // Zoom not supported
     }
