@@ -13,7 +13,7 @@ type AppState =
   | { view: 'camera' }
   | { view: 'processing' }
   | { view: 'confirm'; card: ScryfallCard; ocrText: string }
-  | { view: 'no-match'; ocrText: string; debugUrl?: string }
+  | { view: 'no-match'; ocrText: string; debugUrl?: string; rawDebugUrl?: string }
 
 function App() {
   const { cards, addCard, removeCard } = useCollection()
@@ -33,9 +33,12 @@ function App() {
     setTimeout(() => setToast(null), 2000)
   }, [])
 
-  const handleCapture = useCallback(async ({ nameBar, infoLine }: CaptureResult) => {
+  const handleCapture = useCallback(async ({ nameBar, infoLine, debugFrame }: CaptureResult) => {
     setState({ view: 'processing' })
     try {
+      // Save raw capture before preprocessing for debugging
+      const rawDebugUrl = debugFrame || nameBar.toDataURL('image/png')
+
       // Run both OCR passes in parallel
       const [nameResult, infoResult] = await Promise.all([
         recognizeCardName(nameBar),
@@ -56,7 +59,7 @@ function App() {
 
       // Fall back to fuzzy name search
       if (!cardName) {
-        setState({ view: 'no-match', ocrText: ocrRaw, debugUrl })
+        setState({ view: 'no-match', ocrText: ocrRaw, debugUrl, rawDebugUrl })
         return
       }
 
@@ -64,7 +67,7 @@ function App() {
       if (card) {
         setState({ view: 'confirm', card, ocrText: cardName })
       } else {
-        setState({ view: 'no-match', ocrText: cardName, debugUrl })
+        setState({ view: 'no-match', ocrText: cardName, debugUrl, rawDebugUrl })
       }
     } catch (err) {
       setState({ view: 'no-match', ocrText: String(err) })
@@ -135,6 +138,7 @@ function App() {
         <NoMatchView
           ocrText={state.ocrText}
           debugUrl={state.view === 'no-match' ? state.debugUrl : undefined}
+          rawDebugUrl={state.view === 'no-match' ? state.rawDebugUrl : undefined}
           onAdd={handleAdd}
           onRetry={handleRetry}
         />

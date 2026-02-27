@@ -13,6 +13,7 @@ export const NAME_CROP = { left: 0.02, top: 0.10, width: 0.90, height: 0.65 }
 export interface CaptureResult {
   nameBar: HTMLCanvasElement
   infoLine: HTMLCanvasElement
+  debugFrame?: string  // full frame with crop regions outlined (data URL)
 }
 
 export function useCamera() {
@@ -148,7 +149,29 @@ export function useCamera() {
       Math.round(cardH * INFO_LINE_FRAC * 0.80),
     )
 
-    return { nameBar, infoLine }
+    // --- Debug: draw full frame with crop regions outlined ---
+    const dbgScale = Math.min(1, 600 / vw)
+    const dbg = document.createElement('canvas')
+    dbg.width = Math.round(vw * dbgScale)
+    dbg.height = Math.round(vh * dbgScale)
+    const dctx = dbg.getContext('2d')!
+    dctx.drawImage(video, 0, 0, dbg.width, dbg.height)
+    dctx.strokeStyle = 'lime'
+    dctx.lineWidth = 2
+    // Card outline
+    dctx.strokeRect(cardX * dbgScale, cardY * dbgScale, cardW * dbgScale, cardH * dbgScale)
+    // Name crop (red)
+    dctx.strokeStyle = 'red'
+    dctx.lineWidth = 3
+    dctx.strokeRect(
+      (cardX + barW * NAME_CROP.left) * dbgScale,
+      (cardY + barH * NAME_CROP.top) * dbgScale,
+      (barW * NAME_CROP.width) * dbgScale,
+      (barH * NAME_CROP.height) * dbgScale,
+    )
+    const debugFrame = dbg.toDataURL('image/jpeg', 0.7)
+
+    return { nameBar, infoLine, debugFrame }
   }, [isActive])
 
   const setZoomLevel = useCallback(async (level: number) => {
