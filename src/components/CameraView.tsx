@@ -6,6 +6,9 @@ interface Props {
   isProcessing: boolean
 }
 
+// MTG card aspect ratio: 63mm × 88mm
+const CARD_ASPECT = 63 / 88 // width / height ≈ 0.716
+
 export function CameraView({ onCapture, isProcessing }: Props) {
   const { videoRef, isActive, error, start, capture } = useCamera()
 
@@ -34,6 +37,9 @@ export function CameraView({ onCapture, isProcessing }: Props) {
     )
   }
 
+  // Card outline: 72% of container width, centered, MTG aspect ratio
+  const boxWidthPct = 72
+
   return (
     <div className="relative flex-1 flex flex-col">
       <div className="relative flex-1 overflow-hidden bg-black">
@@ -44,16 +50,51 @@ export function CameraView({ onCapture, isProcessing }: Props) {
           muted
           className="w-full h-full object-cover"
         />
-        {/* Guide overlay for card name region */}
+
+        {/* Card outline overlay */}
         {isActive && (
-          <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            {/* Dim everything outside the card box */}
+            <div className="absolute inset-0 bg-black/40" />
+
+            {/* Card outline box */}
             <div
-              className="absolute left-4 right-4 border-2 border-dashed border-violet-400/60 rounded-lg"
-              style={{ top: '2%', height: '10%' }}
+              className="relative bg-transparent z-10"
+              style={{
+                width: `${boxWidthPct}%`,
+                aspectRatio: `${CARD_ASPECT}`,
+              }}
             >
-              <span className="absolute bottom-1 left-2 text-xs text-violet-300/80">
-                Align card name here
-              </span>
+              {/* Clear the dim inside the box */}
+              <div className="absolute inset-0 bg-transparent mix-blend-normal" />
+
+              {/* Corner brackets */}
+              {(['tl','tr','bl','br'] as const).map((corner) => (
+                <div
+                  key={corner}
+                  className="absolute w-6 h-6 border-violet-400"
+                  style={{
+                    top:    corner.startsWith('t') ? 0 : 'auto',
+                    bottom: corner.startsWith('b') ? 0 : 'auto',
+                    left:   corner.endsWith('l')   ? 0 : 'auto',
+                    right:  corner.endsWith('r')   ? 0 : 'auto',
+                    borderTopWidth:    corner.startsWith('t') ? 2 : 0,
+                    borderBottomWidth: corner.startsWith('b') ? 2 : 0,
+                    borderLeftWidth:   corner.endsWith('l')   ? 2 : 0,
+                    borderRightWidth:  corner.endsWith('r')   ? 2 : 0,
+                  }}
+                />
+              ))}
+
+              {/* Name bar highlight — top 12% of card */}
+              <div
+                className="absolute left-0 right-0 top-0 border border-violet-400/50 border-dashed"
+                style={{ height: '12%' }}
+              >
+                <span className="absolute bottom-1 left-2 text-xs text-violet-300/70">
+                  name
+                </span>
+              </div>
             </div>
           </div>
         )}
