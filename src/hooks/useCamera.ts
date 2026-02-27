@@ -85,10 +85,16 @@ export function useCamera() {
     const cardH = boxH_css * scale
 
     // --- Extract only the name bar (top 12% of card) ---
-    const srcX = Math.round(cardX)
-    const srcY = Math.round(cardY)
-    const srcW = Math.round(cardW)
-    const srcH = Math.round(cardH * NAME_BAR_FRAC)
+    // Then inset to skip the card frame border decorations that confuse OCR.
+    const barX = cardX
+    const barY = cardY
+    const barW = cardW
+    const barH = cardH * NAME_BAR_FRAC
+
+    const srcX = Math.round(barX + barW * 0.05)   // skip left frame edge
+    const srcY = Math.round(barY + barH * 0.15)   // skip top frame border
+    const srcW = Math.round(barW * 0.75)           // stop before mana cost on right
+    const srcH = Math.round(barH * 0.70)           // skip bottom frame border
 
     // --- Scale output down to cap width ---
     const outScale = Math.min(1, MAX_OUT_WIDTH / srcW)

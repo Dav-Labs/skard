@@ -5,9 +5,13 @@ let workerReady: Promise<Worker> | null = null
 export function preloadWorker() {
   if (!workerReady) {
     workerReady = createWorker('eng').then(async (w) => {
-      // SINGLE_LINE: the whole image is one text line — stops Tesseract reading
-      // card art below the name bar as additional text regions.
-      await w.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_LINE })
+      // SPARSE_TEXT: find text regions independently — handles card frame
+      // decorations around the name bar without reading them as text.
+      // Whitelist restricts to characters that appear in card names.
+      await w.setParameters({
+        tessedit_pageseg_mode: PSM.SPARSE_TEXT,
+        tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz -',",
+      })
       return w
     }).catch((err) => {
       workerReady = null
@@ -113,6 +117,8 @@ function bestLine(raw: string): string {
   return raw
     .split('\n')
     .map((l) => l.replace(/[^a-zA-Z\s\-',]/g, '').trim())
+    // Filter out noise: must have at least one word of 3+ letters
+    .filter((l) => /[a-zA-Z]{3,}/.test(l))
     .sort((a, b) => b.length - a.length)[0] ?? ''
 }
 
