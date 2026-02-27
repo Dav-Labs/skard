@@ -1,7 +1,7 @@
-import type { DeckEntry } from '../hooks/useDeckList'
+import type { CollectionCard } from '../hooks/useCollection'
 
 interface Props {
-  entries: DeckEntry[]
+  entries: CollectionCard[]
   onRemove: (id: string) => void
   onClearAll: () => void
 }
@@ -40,7 +40,7 @@ export function DeckList({ entries, onRemove, onClearAll }: Props) {
             <div className="min-w-0 flex-1">
               <span className="text-sm font-medium truncate block">{entry.name}</span>
               <span className="text-xs text-gray-500">
-                ({entry.set.toUpperCase()}) #{entry.collector_number}
+                ({entry.set_code.toUpperCase()}) #{entry.collector_number}
               </span>
             </div>
             <button

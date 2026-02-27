@@ -50,7 +50,7 @@ export function CardConfirm({ card, ocrText, onAdd, onRetry }: Props) {
               onClick={() => onAdd(card)}
               className="flex-1 py-3 bg-green-600 hover:bg-green-500 text-white rounded-xl font-medium transition-colors"
             >
-              Add to Deck
+              Add to Collection
             </button>
             <button
               onClick={onRetry}

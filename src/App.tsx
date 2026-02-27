@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { CameraView } from './components/CameraView'
 import { CardConfirm, NoMatchView } from './components/CardConfirm'
-import { DeckList } from './components/DeckList'
-import { ExportButton } from './components/ExportButton'
-import { useDeckList } from './hooks/useDeckList'
+import { DeckManager } from './components/DeckManager'
+import { useCollection } from './hooks/useCollection'
+import { useDecks } from './hooks/useDecks'
+import { useAuth } from './hooks/useAuth'
 import { preprocessImage, recognizeCardName, preloadWorker } from './lib/ocr'
 import { fuzzySearch, type ScryfallCard } from './lib/scryfall'
 
@@ -14,7 +15,9 @@ type AppState =
   | { view: 'no-match'; ocrText: string }
 
 function App() {
-  const { entries, addEntry, removeEntry, clearAll } = useDeckList()
+  const { cards, addCard, removeCard } = useCollection()
+  const decks = useDecks()
+  const { signOut } = useAuth()
   const [state, setState] = useState<AppState>({ view: 'camera' })
   const [showList, setShowList] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
@@ -51,17 +54,17 @@ function App() {
     }
   }, [])
 
-  const handleAdd = useCallback((card: ScryfallCard) => {
+  const handleAdd = useCallback(async (card: ScryfallCard) => {
     const imageUrl = card.image_uris?.small || card.card_faces?.[0]?.image_uris?.small || ''
-    addEntry({
+    await addCard({
       name: card.name,
-      set: card.set,
+      set_code: card.set,
       collector_number: card.collector_number,
       image_url: imageUrl,
     })
     showToast(`Added ${card.name}`)
     setState({ view: 'camera' })
-  }, [addEntry, showToast])
+  }, [addCard, showToast])
 
   const handleRetry = useCallback(() => {
     setState({ view: 'camera' })
@@ -82,12 +85,18 @@ function App() {
             onClick={() => setShowList(!showList)}
             className="relative px-3 py-1.5 text-sm bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
           >
-            Deck
-            {entries.length > 0 && (
+            Collection
+            {cards.length > 0 && (
               <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-violet-600 rounded-full text-xs flex items-center justify-center font-bold">
-                {entries.length}
+                {cards.length}
               </span>
             )}
+          </button>
+          <button
+            onClick={signOut}
+            className="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors"
+          >
+            Logout
           </button>
         </div>
       </header>
@@ -113,19 +122,22 @@ function App() {
         />
       )}
 
-      {/* Bottom sheet - Deck list */}
+      {/* Bottom sheet - DeckManager */}
       {showList && (
         <div
           className="absolute inset-0 z-20 bg-black/50"
           onClick={() => setShowList(false)}
         >
           <div
-            className="absolute bottom-0 left-0 right-0 bg-gray-900 rounded-t-2xl p-4 max-h-[70vh] flex flex-col gap-3 border-t border-gray-700"
+            className="absolute bottom-0 left-0 right-0 bg-gray-900 rounded-t-2xl p-4 max-h-[80vh] flex flex-col gap-3 border-t border-gray-700"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto" />
-            <DeckList entries={entries} onRemove={removeEntry} onClearAll={clearAll} />
-            <ExportButton entries={entries} />
+            <DeckManager
+              cards={cards}
+              onRemoveCard={removeCard}
+              decks={decks}
+            />
           </div>
         </div>
       )}
