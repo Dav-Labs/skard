@@ -1,16 +1,17 @@
-import { createWorker, PSM, type Worker } from 'tesseract.js'
+import { createWorker, type Worker } from 'tesseract.js'
 
 let workerReady: Promise<Worker> | null = null
 
 export function preloadWorker() {
   if (!workerReady) {
     workerReady = createWorker('eng').then(async (w) => {
-      await w.setParameters({
-        tessedit_pageseg_mode: PSM.SINGLE_LINE,
-        // Restrict to characters that appear in card names
-        tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz -',.",
-      })
+      // '7' = SINGLE_LINE mode: treat the crop as one line of text.
+      // Use the literal string to avoid PSM enum import issues in some builds.
+      await w.setParameters({ tessedit_pageseg_mode: '7' as never })
       return w
+    }).catch((err) => {
+      workerReady = null // allow retry on next scan
+      throw err
     })
   }
   return workerReady
@@ -119,23 +120,19 @@ function cleanText(raw: string): string {
   return firstLine.replace(/[^a-zA-Z\s\-',]/g, '').trim()
 }
 
-export async function recognizeCardName(imageData: string | HTMLCanvasElement): Promise<string> {
+export async function recognizeCardName(canvas: HTMLCanvasElement): Promise<string> {
   const w = await preloadWorker()
 
   // Primary attempt: dark-text-on-light (standard card frames)
-  const processed = typeof imageData === 'string' ? imageData : preprocessImage(imageData as HTMLCanvasElement)
-  const { data: primary } = await w.recognize(processed)
+  const { data: primary } = await w.recognize(preprocessImage(canvas))
   const primaryResult = cleanText(primary.text)
 
   if (primaryResult.length >= 3) return primaryResult
 
   // Fallback: invert polarity for light-text-on-dark frames (mythic, special frames)
-  if (typeof imageData !== 'string') {
-    const inverted = preprocessImage(imageData as HTMLCanvasElement, true)
-    const { data: fallback } = await w.recognize(inverted)
-    const fallbackResult = cleanText(fallback.text)
-    if (fallbackResult.length > primaryResult.length) return fallbackResult
-  }
+  const { data: fallback } = await w.recognize(preprocessImage(canvas, true))
+  const fallbackResult = cleanText(fallback.text)
 
-  return primaryResult
+  // Return whichever attempt produced more text
+  return fallbackResult.length > primaryResult.length ? fallbackResult : primaryResult
 }
