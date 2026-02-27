@@ -87,10 +87,10 @@ export function CameraView({ onCapture, isProcessing }: Props) {
                 />
               ))}
 
-              {/* Name bar highlight — top 12% of card */}
+              {/* Name bar highlight — top 18% of card */}
               <div
                 className="absolute left-0 right-0 top-0 border border-violet-400/50 border-dashed"
-                style={{ height: '12%' }}
+                style={{ height: '18%' }}
               >
                 <span className="absolute bottom-1 left-2 text-xs text-violet-300/70">
                   name

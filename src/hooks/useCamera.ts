@@ -3,7 +3,7 @@ import { useRef, useState, useCallback, useEffect } from 'react'
 // Must match CameraView.tsx constants
 const BOX_WIDTH_FRAC  = 0.48          // 48% of container width
 const CARD_ASPECT     = 63 / 88       // MTG card width/height ratio
-const NAME_BAR_FRAC   = 0.12          // name bar = top 12% of card height
+const NAME_BAR_FRAC   = 0.18          // name bar = top 18% of card height
 const INFO_LINE_FRAC  = 0.06          // info line = bottom 6% of card height
 const MAX_OUT_WIDTH   = 1200          // cap output to avoid huge images
 
