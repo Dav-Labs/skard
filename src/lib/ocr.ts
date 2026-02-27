@@ -114,11 +114,12 @@ export function preprocessImage(canvas: HTMLCanvasElement, invertPolarity = fals
   // Don't stop at the first light row — noisy frame texture has gaps.
   // Trim up to 40% max from each edge to avoid eating into text.
   const BLACK_THRESH = 0.50
-  const MAX_TRIM_FRAC = 0.15
+  const MAX_TRIM_Y = 0.40   // aggressive vertical trim (clear frame bands)
+  const MAX_TRIM_X = 0.08   // conservative horizontal trim (preserve text)
   let top = 0, bottom = h - 1, left = 0, right = w - 1
 
   // Trim top rows (skip noisy gaps)
-  const maxTrimY = Math.floor(h * MAX_TRIM_FRAC)
+  const maxTrimY = Math.floor(h * MAX_TRIM_Y)
   for (let y = 0; y < maxTrimY; y++) {
     let blackCount = 0
     for (let x = 0; x < w; x++) if (thresholded[y * w + x] === 0) blackCount++
@@ -131,7 +132,7 @@ export function preprocessImage(canvas: HTMLCanvasElement, invertPolarity = fals
     if (blackCount / w > BLACK_THRESH) bottom = y - 1
   }
   // Trim left columns
-  const maxTrimX = Math.floor(w * MAX_TRIM_FRAC)
+  const maxTrimX = Math.floor(w * MAX_TRIM_X)
   for (let x = 0; x < maxTrimX; x++) {
     let blackCount = 0
     for (let y = top; y <= bottom; y++) if (thresholded[y * w + x] === 0) blackCount++
