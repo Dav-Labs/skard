@@ -1,5 +1,6 @@
 import type { CollectionCard } from '../hooks/useCollection'
 import type { DeckWithCount } from '../hooks/useDecks'
+import { ExportButton } from './ExportButton'
 import { useState } from 'react'
 
 interface Props {
@@ -33,6 +34,7 @@ export function CollectionView({ cards, onRemove, decks, onAddToDeck }: Props) {
           {cards.length} card{cards.length !== 1 ? 's' : ''}
         </span>
       </div>
+      <ExportButton entries={cards} deckName="collection" />
       <div className="flex flex-col gap-1 max-h-80 overflow-y-auto">
         {cards.map((card) => (
           <div key={card.id}>
