@@ -17,6 +17,18 @@ export interface ScryfallCard {
   }>
 }
 
+export async function exactLookup(set: string, collectorNumber: string): Promise<ScryfallCard | null> {
+  try {
+    const res = await fetch(
+      `https://api.scryfall.com/cards/${encodeURIComponent(set)}/${encodeURIComponent(collectorNumber)}`
+    )
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
 async function tryFuzzy(query: string): Promise<ScryfallCard | null> {
   if (!query || query.length < 3) return null
   try {

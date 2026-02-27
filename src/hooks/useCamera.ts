@@ -4,7 +4,13 @@ import { useRef, useState, useCallback, useEffect } from 'react'
 const BOX_WIDTH_FRAC  = 0.72          // 72% of container width
 const CARD_ASPECT     = 63 / 88       // MTG card width/height ratio
 const NAME_BAR_FRAC   = 0.12          // name bar = top 12% of card height
+const INFO_LINE_FRAC  = 0.06          // info line = bottom 6% of card height
 const MAX_OUT_WIDTH   = 1200          // cap output to avoid huge images
+
+export interface CaptureResult {
+  nameBar: HTMLCanvasElement
+  infoLine: HTMLCanvasElement
+}
 
 export function useCamera() {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -44,7 +50,7 @@ export function useCamera() {
     setIsActive(false)
   }, [])
 
-  const capture = useCallback((): HTMLCanvasElement | null => {
+  const capture = useCallback((): CaptureResult | null => {
     const video = videoRef.current
     if (!video || !isActive) return null
 
@@ -84,29 +90,42 @@ export function useCamera() {
     const cardW = boxW_css * scale
     const cardH = boxH_css * scale
 
-    // --- Extract only the name bar (top 12% of card) ---
-    // Then inset to skip the card frame border decorations that confuse OCR.
+    // --- Helper to extract a region to a canvas ---
+    function extractRegion(sx: number, sy: number, sw: number, sh: number): HTMLCanvasElement {
+      const outScale = Math.min(1, MAX_OUT_WIDTH / sw)
+      const outW = Math.round(sw * outScale)
+      const outH = Math.round(sh * outScale)
+      const c = document.createElement('canvas')
+      c.width = outW
+      c.height = outH
+      const ctx = c.getContext('2d')!
+      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, outW, outH)
+      return c
+    }
+
+    // --- Name bar (top 12% of card) ---
     const barX = cardX
     const barY = cardY
     const barW = cardW
     const barH = cardH * NAME_BAR_FRAC
 
-    const srcX = Math.round(barX + barW * 0.08)   // skip left frame edge + decoration
-    const srcY = Math.round(barY + barH * 0.15)   // skip top frame border
-    const srcW = Math.round(barW * 0.62)           // stop well before mana cost on right
-    const srcH = Math.round(barH * 0.70)           // skip bottom frame border
+    const nameBar = extractRegion(
+      Math.round(barX + barW * 0.08),   // skip left frame edge + decoration
+      Math.round(barY + barH * 0.15),   // skip top frame border
+      Math.round(barW * 0.62),           // stop well before mana cost on right
+      Math.round(barH * 0.70),           // skip bottom frame border
+    )
 
-    // --- Scale output down to cap width ---
-    const outScale = Math.min(1, MAX_OUT_WIDTH / srcW)
-    const outW     = Math.round(srcW * outScale)
-    const outH     = Math.round(srcH * outScale)
+    // --- Info line (bottom 6% of card) ---
+    const infoY = cardY + cardH * (1 - INFO_LINE_FRAC)
+    const infoLine = extractRegion(
+      Math.round(cardX + cardW * 0.04), // left inset 4% (skip frame edge)
+      Math.round(infoY + cardH * INFO_LINE_FRAC * 0.10), // skip top border
+      Math.round(cardW * 0.60),          // left 60% (info is left-aligned, skip copyright)
+      Math.round(cardH * INFO_LINE_FRAC * 0.80), // 80% height (skip bottom frame border)
+    )
 
-    const canvas = document.createElement('canvas')
-    canvas.width  = outW
-    canvas.height = outH
-    const ctx = canvas.getContext('2d')!
-    ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, outW, outH)
-    return canvas
+    return { nameBar, infoLine }
   }, [isActive])
 
   useEffect(() => {

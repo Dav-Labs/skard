@@ -1,5 +1,10 @@
 import { createWorker, PSM, type Worker } from 'tesseract.js'
 
+export interface CollectorInfo {
+  set: string
+  number: string
+}
+
 let workerReady: Promise<Worker> | null = null
 
 export function preloadWorker() {
@@ -19,6 +24,24 @@ export function preloadWorker() {
     })
   }
   return workerReady
+}
+
+let collectorWorkerReady: Promise<Worker> | null = null
+
+export function preloadCollectorWorker() {
+  if (!collectorWorkerReady) {
+    collectorWorkerReady = createWorker('eng').then(async (w) => {
+      await w.setParameters({
+        tessedit_pageseg_mode: PSM.SINGLE_LINE,
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/ ',
+      })
+      return w
+    }).catch((err) => {
+      collectorWorkerReady = null
+      throw err
+    })
+  }
+  return collectorWorkerReady
 }
 
 export function preprocessImage(canvas: HTMLCanvasElement, invertPolarity = false): HTMLCanvasElement {
@@ -123,6 +146,44 @@ function bestLine(raw: string): string {
     // Strip leading/trailing single-char words (frame decoration artifacts like "t")
     .map((l) => l.replace(/^(\S\s)+/, '').replace(/(\s\S)+$/, '').trim())
     [0] ?? ''
+}
+
+export function parseCollectorInfo(raw: string): CollectorInfo | null {
+  const text = raw.trim().toUpperCase()
+
+  // Post-2024 format: "R 0123 SET EN" or "R 0123 SET"
+  const post2024 = text.match(/[RCUMSB]\s+(\d{1,4}[A-Z]?)\s+([A-Z][A-Z0-9]{2,3})\b/)
+  if (post2024) {
+    return { number: post2024[1].replace(/^0+/, '') || '0', set: post2024[2].toLowerCase() }
+  }
+
+  // Pre-2024 format: "123/269 SET R EN" or "123/269 SET"
+  const pre2024 = text.match(/(\d{1,4}[A-Z]?)\/\d+\s+([A-Z][A-Z0-9]{2,3})\b/)
+  if (pre2024) {
+    return { number: pre2024[1].replace(/^0+/, '') || '0', set: pre2024[2].toLowerCase() }
+  }
+
+  // Loose fallback: any 1-4 digit number near any 3-4 letter code
+  const loose = text.match(/(\d{1,4}[A-Z]?)\s+([A-Z][A-Z0-9]{2,3})\b/)
+  if (loose) {
+    return { number: loose[1].replace(/^0+/, '') || '0', set: loose[2].toLowerCase() }
+  }
+
+  return null
+}
+
+export async function recognizeCollectorInfo(canvas: HTMLCanvasElement): Promise<{ info: CollectorInfo | null; raw: string; debugUrl: string }> {
+  const worker = await preloadCollectorWorker()
+
+  // Collector info is white text on dark background — always invert
+  const processed = preprocessImage(canvas, true)
+  const debugUrl = processed.toDataURL('image/png')
+
+  const { data } = await worker.recognize(processed)
+  const raw = data.text.trim()
+  const info = parseCollectorInfo(raw)
+
+  return { info, raw, debugUrl }
 }
 
 export async function recognizeCardName(canvas: HTMLCanvasElement): Promise<{ name: string; raw: string; debugUrl: string }> {

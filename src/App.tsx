@@ -5,8 +5,9 @@ import { DeckManager } from './components/DeckManager'
 import { useCollection } from './hooks/useCollection'
 import { useDecks } from './hooks/useDecks'
 import { useAuth } from './hooks/useAuth'
-import { recognizeCardName, preloadWorker } from './lib/ocr'
-import { fuzzySearch, type ScryfallCard } from './lib/scryfall'
+import { recognizeCardName, recognizeCollectorInfo, preloadWorker, preloadCollectorWorker } from './lib/ocr'
+import { fuzzySearch, exactLookup, type ScryfallCard } from './lib/scryfall'
+import type { CaptureResult } from './hooks/useCamera'
 
 type AppState =
   | { view: 'camera' }
@@ -24,7 +25,7 @@ function App() {
   const [ocrReady, setOcrReady] = useState(false)
 
   useEffect(() => {
-    preloadWorker().then(() => setOcrReady(true))
+    Promise.all([preloadWorker(), preloadCollectorWorker()]).then(() => setOcrReady(true))
   }, [])
 
   const showToast = useCallback((msg: string) => {
@@ -32,11 +33,28 @@ function App() {
     setTimeout(() => setToast(null), 2000)
   }, [])
 
-  const handleCapture = useCallback(async (canvas: HTMLCanvasElement) => {
+  const handleCapture = useCallback(async ({ nameBar, infoLine }: CaptureResult) => {
     setState({ view: 'processing' })
     try {
-      const { name: cardName, raw: ocrRaw, debugUrl } = await recognizeCardName(canvas)
+      // Run both OCR passes in parallel
+      const [nameResult, infoResult] = await Promise.all([
+        recognizeCardName(nameBar),
+        recognizeCollectorInfo(infoLine),
+      ])
 
+      const { name: cardName, raw: ocrRaw, debugUrl } = nameResult
+      const { info } = infoResult
+
+      // Try exact lookup first if collector info was parsed
+      if (info) {
+        const exact = await exactLookup(info.set, info.number)
+        if (exact) {
+          setState({ view: 'confirm', card: exact, ocrText: `${info.set.toUpperCase()} #${info.number}` })
+          return
+        }
+      }
+
+      // Fall back to fuzzy name search
       if (!cardName) {
         setState({ view: 'no-match', ocrText: ocrRaw, debugUrl })
         return

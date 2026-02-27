@@ -1,8 +1,9 @@
 import { useEffect } from 'react'
 import { useCamera } from '../hooks/useCamera'
+import type { CaptureResult } from '../hooks/useCamera'
 
 interface Props {
-  onCapture: (canvas: HTMLCanvasElement) => void
+  onCapture: (result: CaptureResult) => void
   isProcessing: boolean
 }
 
@@ -17,8 +18,8 @@ export function CameraView({ onCapture, isProcessing }: Props) {
   }, [start])
 
   const handleCapture = () => {
-    const canvas = capture()
-    if (canvas) onCapture(canvas)
+    const result = capture()
+    if (result) onCapture(result)
   }
 
   if (error) {
@@ -93,6 +94,16 @@ export function CameraView({ onCapture, isProcessing }: Props) {
               >
                 <span className="absolute bottom-1 left-2 text-xs text-violet-300/70">
                   name
+                </span>
+              </div>
+
+              {/* Info line highlight — bottom 6% of card */}
+              <div
+                className="absolute left-0 bottom-0 border border-violet-400/50 border-dashed"
+                style={{ height: '6%', width: '60%' }}
+              >
+                <span className="absolute top-0 left-2 text-xs text-violet-300/70" style={{ fontSize: '0.55rem' }}>
+                  info
                 </span>
               </div>
             </div>
