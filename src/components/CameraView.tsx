@@ -48,8 +48,8 @@ export function CameraView({ onCapture, isProcessing }: Props) {
         {isActive && (
           <div className="absolute inset-0 pointer-events-none">
             <div
-              className="absolute top-0 left-4 right-4 border-2 border-dashed border-violet-400/60 rounded-b-lg"
-              style={{ height: '20%' }}
+              className="absolute left-4 right-4 border-2 border-dashed border-violet-400/60 rounded-lg"
+              style={{ top: '3%', height: '10%' }}
             >
               <span className="absolute bottom-1 left-2 text-xs text-violet-300/80">
                 Align card name here

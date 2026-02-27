@@ -12,8 +12,8 @@ export function useCamera() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'environment',
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
+          width: { ideal: 3840 },
+          height: { ideal: 2160 },
         },
       })
       streamRef.current = stream
@@ -45,13 +45,16 @@ export function useCamera() {
     const vw = video.videoWidth
     const vh = video.videoHeight
 
-    // Crop top ~20% of frame (card name region)
-    const cropHeight = Math.round(vh * 0.20)
+    // Crop top ~12% of frame — tighter crop on just the card name bar
+    // With the stand at a fixed distance, the card name occupies a smaller
+    // portion of the frame than when holding the phone close
+    const cropY = Math.round(vh * 0.03) // skip very top edge
+    const cropHeight = Math.round(vh * 0.10)
     const canvas = document.createElement('canvas')
     canvas.width = vw
     canvas.height = cropHeight
     const ctx = canvas.getContext('2d')!
-    ctx.drawImage(video, 0, 0, vw, cropHeight, 0, 0, vw, cropHeight)
+    ctx.drawImage(video, 0, cropY, vw, cropHeight, 0, 0, vw, cropHeight)
     return canvas
   }, [isActive])
 
