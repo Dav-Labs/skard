@@ -12,7 +12,7 @@ type AppState =
   | { view: 'camera' }
   | { view: 'processing' }
   | { view: 'confirm'; card: ScryfallCard; ocrText: string }
-  | { view: 'no-match'; ocrText: string }
+  | { view: 'no-match'; ocrText: string; debugUrl?: string }
 
 function App() {
   const { cards, addCard, removeCard } = useCollection()
@@ -35,10 +35,10 @@ function App() {
   const handleCapture = useCallback(async (canvas: HTMLCanvasElement) => {
     setState({ view: 'processing' })
     try {
-      const { name: cardName, raw: ocrRaw } = await recognizeCardName(canvas)
+      const { name: cardName, raw: ocrRaw, debugUrl } = await recognizeCardName(canvas)
 
       if (!cardName) {
-        setState({ view: 'no-match', ocrText: ocrRaw })
+        setState({ view: 'no-match', ocrText: ocrRaw, debugUrl })
         return
       }
 
@@ -46,7 +46,7 @@ function App() {
       if (card) {
         setState({ view: 'confirm', card, ocrText: cardName })
       } else {
-        setState({ view: 'no-match', ocrText: cardName })
+        setState({ view: 'no-match', ocrText: cardName, debugUrl })
       }
     } catch (err) {
       setState({ view: 'no-match', ocrText: String(err) })
@@ -116,6 +116,7 @@ function App() {
       ) : (
         <NoMatchView
           ocrText={state.ocrText}
+          debugUrl={state.view === 'no-match' ? state.debugUrl : undefined}
           onAdd={handleAdd}
           onRetry={handleRetry}
         />

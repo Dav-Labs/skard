@@ -5,7 +5,7 @@ let workerReady: Promise<Worker> | null = null
 export function preloadWorker() {
   if (!workerReady) {
     workerReady = createWorker('eng').catch((err) => {
-      workerReady = null // allow retry on next scan
+      workerReady = null
       throw err
     })
   }
@@ -19,8 +19,6 @@ export function preprocessImage(canvas: HTMLCanvasElement, invertPolarity = fals
   const h = canvas.height
 
   // Step 1: Grayscale
-  // NOTE: No sharpening — sharpening amplifies foil/reflective surface noise into
-  // high-frequency artifacts that adaptive threshold misreads as text characters.
   const gray = new Uint8Array(w * h)
   for (let i = 0; i < srcPixels.length; i += 4) {
     gray[i / 4] = Math.round(
@@ -28,11 +26,30 @@ export function preprocessImage(canvas: HTMLCanvasElement, invertPolarity = fals
     )
   }
 
-  const source = invertPolarity ? gray.map((v) => 255 - v) : gray
+  // Step 2: Mild Gaussian blur (3×3, σ≈1) to smooth foil/reflective surface noise
+  // before thresholding — smoothing suppresses high-frequency foil texture that
+  // adaptive threshold would otherwise misread as ink. Unlike sharpening, it does
+  // NOT amplify noise artifacts.
+  const blurred = new Uint8Array(w * h)
+  const kernel = [1, 2, 1, 2, 4, 2, 1, 2, 1] // sum=16
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let sum = 0
+      for (let ky = -1; ky <= 1; ky++) {
+        for (let kx = -1; kx <= 1; kx++) {
+          const ny = Math.min(h - 1, Math.max(0, y + ky))
+          const nx = Math.min(w - 1, Math.max(0, x + kx))
+          sum += gray[ny * w + nx] * kernel[(ky + 1) * 3 + (kx + 1)]
+        }
+      }
+      blurred[y * w + x] = Math.round(sum / 16)
+    }
+  }
 
-  // Step 2: Adaptive threshold — window sized to roughly one character width
-  // C=8: pixels must be ≥8 gray levels darker than local mean to count as text;
-  // keeps noise and smooth foil gradients from registering as ink.
+  const source = invertPolarity ? blurred.map((v) => 255 - v) : blurred
+
+  // Step 3: Adaptive threshold — window≈one character wide, C=8 keeps foil
+  // gradients from counting as ink (pixel must be 8 levels darker than local mean)
   const windowSize = Math.max(15, Math.round(w / 40))
   const half = Math.floor(windowSize / 2)
   const thresholded = new Uint8Array(w * h)
@@ -61,8 +78,8 @@ export function preprocessImage(canvas: HTMLCanvasElement, invertPolarity = fals
     }
   }
 
-  // Step 3: 3x upscale — pushes character height into Tesseract's sweet spot (20–30px)
-  const scale = 3
+  // Step 4: 2x upscale — brings character height to Tesseract sweet spot (20–30px)
+  const scale = 2
   const out = document.createElement('canvas')
   out.width = w * scale
   out.height = h * scale
@@ -88,28 +105,28 @@ export function preprocessImage(canvas: HTMLCanvasElement, invertPolarity = fals
 }
 
 function bestLine(raw: string): string {
-  // Take the longest alpha-only line; handles cases where a mana cost row or
-  // artifact noise appears on a different line than the actual card name.
   return raw
     .split('\n')
     .map((l) => l.replace(/[^a-zA-Z\s\-',]/g, '').trim())
     .sort((a, b) => b.length - a.length)[0] ?? ''
 }
 
-export async function recognizeCardName(canvas: HTMLCanvasElement): Promise<{ name: string; raw: string }> {
+export async function recognizeCardName(canvas: HTMLCanvasElement): Promise<{ name: string; raw: string; debugUrl: string }> {
   const worker = await preloadWorker()
 
-  // Primary: dark text on light background (standard frames)
-  const { data: primary } = await worker.recognize(preprocessImage(canvas))
+  const processed = preprocessImage(canvas)
+  const debugUrl = processed.toDataURL('image/png')
+
+  const { data: primary } = await worker.recognize(processed)
   const primaryName = bestLine(primary.text)
 
-  if (primaryName.length >= 3) return { name: primaryName, raw: primary.text.trim() }
+  if (primaryName.length >= 3) return { name: primaryName, raw: primary.text.trim(), debugUrl }
 
-  // Fallback: inverted polarity for light-text-on-dark frames (some promos/foils)
+  // Inverted polarity fallback for light-text-on-dark frames
   const { data: fallback } = await worker.recognize(preprocessImage(canvas, true))
   const fallbackName = bestLine(fallback.text)
 
   return fallbackName.length > primaryName.length
-    ? { name: fallbackName, raw: fallback.text.trim() }
-    : { name: primaryName, raw: primary.text.trim() }
+    ? { name: fallbackName, raw: fallback.text.trim(), debugUrl }
+    : { name: primaryName, raw: primary.text.trim(), debugUrl }
 }

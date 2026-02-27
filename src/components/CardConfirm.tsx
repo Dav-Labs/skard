@@ -102,11 +102,12 @@ export function CardConfirm({ card, ocrText, onAdd, onRetry }: Props) {
 
 interface NoMatchProps {
   ocrText: string
+  debugUrl?: string
   onAdd: (card: ScryfallCard) => void
   onRetry: () => void
 }
 
-export function NoMatchView({ ocrText, onAdd, onRetry }: NoMatchProps) {
+export function NoMatchView({ ocrText, debugUrl, onAdd, onRetry }: NoMatchProps) {
   const [manualName, setManualName] = useState(ocrText)
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState('')
@@ -132,6 +133,12 @@ export function NoMatchView({ ocrText, onAdd, onRetry }: NoMatchProps) {
           OCR read: "<span className="text-gray-300">{ocrText || '(empty)'}</span>"
         </p>
       </div>
+      {debugUrl && (
+        <div className="w-full max-w-sm">
+          <p className="text-xs text-gray-500 mb-1">Processed image (what OCR sees):</p>
+          <img src={debugUrl} alt="OCR input" className="w-full rounded border border-gray-700" />
+        </div>
+      )}
       <div className="w-full max-w-sm flex flex-col gap-3">
         <input
           type="text"
