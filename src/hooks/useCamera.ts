@@ -1,5 +1,8 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 
+// Must match CameraView.tsx constants
+const BOX_WIDTH_FRAC  = 0.72          // 72% of container width
+const CARD_ASPECT     = 63 / 88       // MTG card width/height ratio
 const NAME_BAR_FRAC   = 0.18          // name bar = top 18% of card height
 const INFO_LINE_FRAC  = 0.06          // info line = bottom 6% of card height
 const MAX_OUT_WIDTH   = 1200          // cap output to avoid huge images
@@ -79,27 +82,14 @@ export function useCamera() {
 
   const capture = useCallback((): CaptureResult | null => {
     const video = videoRef.current
-    const box = boxRef.current
-    if (!video || !box || !isActive) return null
+    if (!video || !isActive) return null
 
     const vw = video.videoWidth
     const vh = video.videoHeight
+    const cw = video.clientWidth
+    const ch = video.clientHeight
 
-    // --- Use actual DOM positions for perfect alignment ---
-    const videoRect = video.getBoundingClientRect()
-    const boxRect = box.getBoundingClientRect()
-
-    // Box position relative to video element
-    const boxL_css = boxRect.left - videoRect.left
-    const boxT_css = boxRect.top - videoRect.top
-    const boxW_css = boxRect.width
-    const boxH_css = boxRect.height
-
-    // Container = video element CSS size
-    const cw = videoRect.width
-    const ch = videoRect.height
-
-    // --- Object-cover coordinate transform ---
+    // --- Object-cover coordinate transform (proven approach from 42cdea0) ---
     const videoAspect     = vw / vh
     const containerAspect = cw / ch
     let scale: number, offX: number, offY: number
@@ -114,13 +104,18 @@ export function useCamera() {
       offY  = (vh - ch * scale) / 2
     }
 
-    // --- Map box → video pixel coordinates ---
+    // --- Card outline box in CSS pixels (mirrors CameraView.tsx) ---
+    const boxW_css = cw * BOX_WIDTH_FRAC
+    const boxH_css = boxW_css / CARD_ASPECT
+    const boxL_css = (cw - boxW_css) / 2
+    const boxT_css = (ch - boxH_css) / 2
+
+    // --- Map card outline → video pixel coordinates ---
     const cardX = offX + boxL_css * scale
     const cardY = offY + boxT_css * scale
     const cardW = boxW_css * scale
     const cardH = boxH_css * scale
 
-    // --- Helper to extract a region to a canvas ---
     function extractRegion(src: HTMLVideoElement, sx: number, sy: number, sw: number, sh: number): HTMLCanvasElement {
       const outScale = Math.min(1, MAX_OUT_WIDTH / sw)
       const outW = Math.round(sw * outScale)
