@@ -5,7 +5,7 @@ import { DeckManager } from './components/DeckManager'
 import { useCollection } from './hooks/useCollection'
 import { useDecks } from './hooks/useDecks'
 import { useAuth } from './hooks/useAuth'
-import { preprocessImage, recognizeCardName, preloadWorker } from './lib/ocr'
+import { recognizeCardName, preloadWorker } from './lib/ocr'
 import { fuzzySearch, type ScryfallCard } from './lib/scryfall'
 
 type AppState =
@@ -35,8 +35,7 @@ function App() {
   const handleCapture = useCallback(async (canvas: HTMLCanvasElement) => {
     setState({ view: 'processing' })
     try {
-      const processed = preprocessImage(canvas)
-      const cardName = await recognizeCardName(processed)
+      const cardName = await recognizeCardName(canvas)
 
       if (!cardName) {
         setState({ view: 'no-match', ocrText: '' })

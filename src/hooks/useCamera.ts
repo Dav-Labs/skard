@@ -48,12 +48,20 @@ export function useCamera() {
     // Crop top ~20% of frame — wide enough to catch the name bar
     // even when the card isn't perfectly aligned at ~6 inches handheld
     const cropY = Math.round(vh * 0.02)
-    const cropHeight = Math.round(vh * 0.20)
+    const cropH = Math.round(vh * 0.20)
+
+    // Cap width at 1200px so preprocessImage never gets a massive 4K image.
+    // Tesseract + 3x upscale on a 3840px-wide crop would be ~11k px and hang.
+    const maxW = 1200
+    const scale = Math.min(1, maxW / vw)
+    const outW = Math.round(vw * scale)
+    const outH = Math.round(cropH * scale)
+
     const canvas = document.createElement('canvas')
-    canvas.width = vw
-    canvas.height = cropHeight
+    canvas.width = outW
+    canvas.height = outH
     const ctx = canvas.getContext('2d')!
-    ctx.drawImage(video, 0, cropY, vw, cropHeight, 0, 0, vw, cropHeight)
+    ctx.drawImage(video, 0, cropY, vw, cropH, 0, 0, outW, outH)
     return canvas
   }, [isActive])
 
