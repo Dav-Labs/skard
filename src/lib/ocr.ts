@@ -10,11 +10,11 @@ let workerReady: Promise<Worker> | null = null
 export function preloadWorker() {
   if (!workerReady) {
     workerReady = createWorker('eng').then(async (w) => {
-      // SPARSE_TEXT: find text regions independently — handles card frame
-      // decorations around the name bar without reading them as text.
-      // Whitelist restricts to characters that appear in card names.
+      // SINGLE_LINE: the name bar crop should contain exactly one line of text.
+      // Combined with border trimming in preprocessImage, this gives Tesseract
+      // a clean signal without frame decoration noise.
       await w.setParameters({
-        tessedit_pageseg_mode: PSM.SPARSE_TEXT,
+        tessedit_pageseg_mode: PSM.SINGLE_LINE,
         tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz -',",
       })
       return w
@@ -110,18 +110,50 @@ export function preprocessImage(canvas: HTMLCanvasElement, invertPolarity = fals
     }
   }
 
-  // Step 4: 2x upscale — brings character height to Tesseract sweet spot (20–30px)
+  // Step 4: Trim border rows/columns that are >70% black (frame decorations)
+  const BLACK_THRESH = 0.70
+  let top = 0, bottom = h - 1, left = 0, right = w - 1
+
+  // Trim top rows
+  for (let y = 0; y < h; y++) {
+    let blackCount = 0
+    for (let x = 0; x < w; x++) if (thresholded[y * w + x] === 0) blackCount++
+    if (blackCount / w > BLACK_THRESH) top = y + 1; else break
+  }
+  // Trim bottom rows
+  for (let y = h - 1; y >= top; y--) {
+    let blackCount = 0
+    for (let x = 0; x < w; x++) if (thresholded[y * w + x] === 0) blackCount++
+    if (blackCount / w > BLACK_THRESH) bottom = y - 1; else break
+  }
+  // Trim left columns
+  for (let x = 0; x < w; x++) {
+    let blackCount = 0
+    for (let y = top; y <= bottom; y++) if (thresholded[y * w + x] === 0) blackCount++
+    if (blackCount / (bottom - top + 1) > BLACK_THRESH) left = x + 1; else break
+  }
+  // Trim right columns
+  for (let x = w - 1; x >= left; x--) {
+    let blackCount = 0
+    for (let y = top; y <= bottom; y++) if (thresholded[y * w + x] === 0) blackCount++
+    if (blackCount / (bottom - top + 1) > BLACK_THRESH) right = x - 1; else break
+  }
+
+  const trimW = Math.max(1, right - left + 1)
+  const trimH = Math.max(1, bottom - top + 1)
+
+  // Step 5: 2x upscale — brings character height to Tesseract sweet spot (20–30px)
   const scale = 2
   const out = document.createElement('canvas')
-  out.width = w * scale
-  out.height = h * scale
+  out.width = trimW * scale
+  out.height = trimH * scale
   const outCtx = out.getContext('2d')!
   const outData = outCtx.createImageData(out.width, out.height)
   const outPixels = outData.data
 
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const val = thresholded[y * w + x]
+  for (let y = 0; y < trimH; y++) {
+    for (let x = 0; x < trimW; x++) {
+      const val = thresholded[(y + top) * w + (x + left)]
       for (let dy = 0; dy < scale; dy++) {
         for (let dx = 0; dx < scale; dx++) {
           const oi = ((y * scale + dy) * out.width + (x * scale + dx)) * 4
