@@ -39,7 +39,7 @@ export function CameraView({ onCapture, isProcessing }: Props) {
   }
 
   // Card outline: 72% of container width, centered, MTG aspect ratio
-  const boxWidthPct = 72
+  const boxWidthPct = 55
 
   return (
     <div className="relative flex-1 flex flex-col">
