@@ -119,7 +119,10 @@ function bestLine(raw: string): string {
     .map((l) => l.replace(/[^a-zA-Z\s\-',]/g, '').trim())
     // Filter out noise: must have at least one word of 3+ letters
     .filter((l) => /[a-zA-Z]{3,}/.test(l))
-    .sort((a, b) => b.length - a.length)[0] ?? ''
+    .sort((a, b) => b.length - a.length)
+    // Strip leading/trailing single-char words (frame decoration artifacts like "t")
+    .map((l) => l.replace(/^(\S\s)+/, '').replace(/(\s\S)+$/, '').trim())
+    [0] ?? ''
 }
 
 export async function recognizeCardName(canvas: HTMLCanvasElement): Promise<{ name: string; raw: string; debugUrl: string }> {

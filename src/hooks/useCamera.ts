@@ -91,9 +91,9 @@ export function useCamera() {
     const barW = cardW
     const barH = cardH * NAME_BAR_FRAC
 
-    const srcX = Math.round(barX + barW * 0.05)   // skip left frame edge
+    const srcX = Math.round(barX + barW * 0.08)   // skip left frame edge + decoration
     const srcY = Math.round(barY + barH * 0.15)   // skip top frame border
-    const srcW = Math.round(barW * 0.75)           // stop before mana cost on right
+    const srcW = Math.round(barW * 0.62)           // stop well before mana cost on right
     const srcH = Math.round(barH * 0.70)           // skip bottom frame border
 
     // --- Scale output down to cap width ---
