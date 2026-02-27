@@ -17,6 +17,7 @@ export function useCamera() {
   const streamRef = useRef<MediaStream | null>(null)
   const [isActive, setIsActive] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [torch, setTorch] = useState(true)
 
   const start = useCallback(async () => {
     try {
@@ -110,7 +111,7 @@ export function useCamera() {
       return c
     }
 
-    // --- Name bar (top 12% of card) ---
+    // --- Name bar (top 18% of card, but crop tightly to just the text) ---
     const barX = cardX
     const barY = cardY
     const barW = cardW
@@ -118,9 +119,9 @@ export function useCamera() {
 
     const nameBar = extractRegion(video,
       Math.round(barX + barW * 0.08),   // skip left frame edge + decoration
-      Math.round(barY + barH * 0.15),   // skip top frame border
+      Math.round(barY + barH * 0.25),   // skip top frame border (deeper inset for 18% bar)
       Math.round(barW * 0.62),           // stop well before mana cost on right
-      Math.round(barH * 0.70),           // skip bottom frame border
+      Math.round(barH * 0.35),           // tight crop: just the name text, skip frame borders
     )
 
     // --- Info line (bottom 6% of card) ---
@@ -135,11 +136,23 @@ export function useCamera() {
     return { nameBar, infoLine }
   }, [isActive])
 
+  const toggleTorch = useCallback(async () => {
+    const track = streamRef.current?.getVideoTracks()[0]
+    if (!track) return
+    const next = !torch
+    try {
+      await track.applyConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] })
+      setTorch(next)
+    } catch {
+      // Torch not supported
+    }
+  }, [torch])
+
   useEffect(() => {
     return () => {
       streamRef.current?.getTracks().forEach((t) => t.stop())
     }
   }, [])
 
-  return { videoRef, isActive, error, start, stop, capture }
+  return { videoRef, isActive, error, start, stop, capture, torch, toggleTorch }
 }
