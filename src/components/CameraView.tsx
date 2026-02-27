@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useCamera } from '../hooks/useCamera'
+import { useCamera, NAME_CROP } from '../hooks/useCamera'
 import type { CaptureResult } from '../hooks/useCamera'
 
 interface Props {
@@ -11,7 +11,7 @@ interface Props {
 const CARD_ASPECT = 63 / 88 // width / height ≈ 0.716
 
 export function CameraView({ onCapture, isProcessing }: Props) {
-  const { videoRef, isActive, error, start, capture, torch, toggleTorch, zoom, zoomRange, setZoomLevel } = useCamera()
+  const { videoRef, boxRef, isActive, error, start, capture, torch, toggleTorch, zoom, zoomRange, setZoomLevel } = useCamera()
 
   useEffect(() => {
     start()
@@ -60,6 +60,7 @@ export function CameraView({ onCapture, isProcessing }: Props) {
 
             {/* Card outline box */}
             <div
+              ref={boxRef}
               className="relative bg-transparent z-10"
               style={{
                 width: `${boxWidthPct}%`,
@@ -90,6 +91,17 @@ export function CameraView({ onCapture, isProcessing }: Props) {
                   }}
                 />
               ))}
+
+              {/* Name scan region indicator — shows exactly where OCR crops */}
+              <div
+                className="absolute border border-violet-400/60 border-dashed bg-violet-400/10"
+                style={{
+                  left: `${NAME_CROP.left * 100}%`,
+                  top: `${NAME_CROP.top * 18}%`,
+                  width: `${NAME_CROP.width * 100}%`,
+                  height: `${NAME_CROP.height * 18}%`,
+                }}
+              />
             </div>
           </div>
         )}

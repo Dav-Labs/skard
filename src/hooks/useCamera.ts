@@ -1,11 +1,11 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 
-// Must match CameraView.tsx constants
-const BOX_WIDTH_FRAC  = 0.72          // 72% of container width
-const CARD_ASPECT     = 63 / 88       // MTG card width/height ratio
 const NAME_BAR_FRAC   = 0.18          // name bar = top 18% of card height
 const INFO_LINE_FRAC  = 0.06          // info line = bottom 6% of card height
 const MAX_OUT_WIDTH   = 1200          // cap output to avoid huge images
+
+// Name crop insets within the name bar (what actually gets OCR'd)
+export const NAME_CROP = { left: 0.02, top: 0.10, width: 0.90, height: 0.65 }
 
 export interface CaptureResult {
   nameBar: HTMLCanvasElement
@@ -14,6 +14,7 @@ export interface CaptureResult {
 
 export function useCamera() {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const boxRef = useRef<HTMLDivElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const [isActive, setIsActive] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -78,39 +79,42 @@ export function useCamera() {
 
   const capture = useCallback((): CaptureResult | null => {
     const video = videoRef.current
-    if (!video || !isActive) return null
+    const box = boxRef.current
+    if (!video || !box || !isActive) return null
 
     const vw = video.videoWidth
     const vh = video.videoHeight
-    // clientWidth/clientHeight = actual CSS display size of the video element
-    const cw = video.clientWidth
-    const ch = video.clientHeight
+
+    // --- Use actual DOM positions for perfect alignment ---
+    const videoRect = video.getBoundingClientRect()
+    const boxRect = box.getBoundingClientRect()
+
+    // Box position relative to video element
+    const boxL_css = boxRect.left - videoRect.left
+    const boxT_css = boxRect.top - videoRect.top
+    const boxW_css = boxRect.width
+    const boxH_css = boxRect.height
+
+    // Container = video element CSS size
+    const cw = videoRect.width
+    const ch = videoRect.height
 
     // --- Object-cover coordinate transform ---
-    // Determine how the video is scaled+offset to fill the container.
     const videoAspect     = vw / vh
     const containerAspect = cw / ch
     let scale: number, offX: number, offY: number
 
     if (videoAspect > containerAspect) {
-      // Video is wider — scale to fill height, crop left/right
       scale = vh / ch
       offX  = (vw - cw * scale) / 2
       offY  = 0
     } else {
-      // Video is taller — scale to fill width, crop top/bottom
       scale = vw / cw
       offX  = 0
       offY  = (vh - ch * scale) / 2
     }
 
-    // --- Card outline box in CSS pixels (mirrors CameraView.tsx) ---
-    const boxW_css = cw * BOX_WIDTH_FRAC
-    const boxH_css = boxW_css / CARD_ASPECT
-    const boxL_css = (cw - boxW_css) / 2
-    const boxT_css = (ch - boxH_css) / 2
-
-    // --- Map card outline → video pixel coordinates ---
+    // --- Map box → video pixel coordinates ---
     const cardX = offX + boxL_css * scale
     const cardY = offY + boxT_css * scale
     const cardW = boxW_css * scale
@@ -129,26 +133,24 @@ export function useCamera() {
       return c
     }
 
-    // --- Name bar (top 18% of card, but crop tightly to just the text) ---
-    const barX = cardX
-    const barY = cardY
+    // --- Name bar (top 18% of card) ---
     const barW = cardW
     const barH = cardH * NAME_BAR_FRAC
 
     const nameBar = extractRegion(video,
-      Math.round(barX + barW * 0.02),   // minimal left inset
-      Math.round(barY + barH * 0.10),   // small top inset
-      Math.round(barW * 0.90),           // capture nearly full width (border trim cleans edges)
-      Math.round(barH * 0.65),           // generous height (border trim cleans top/bottom)
+      Math.round(cardX + barW * NAME_CROP.left),
+      Math.round(cardY + barH * NAME_CROP.top),
+      Math.round(barW * NAME_CROP.width),
+      Math.round(barH * NAME_CROP.height),
     )
 
     // --- Info line (bottom 6% of card) ---
     const infoY = cardY + cardH * (1 - INFO_LINE_FRAC)
     const infoLine = extractRegion(video,
-      Math.round(cardX + cardW * 0.04), // left inset 4% (skip frame edge)
-      Math.round(infoY + cardH * INFO_LINE_FRAC * 0.10), // skip top border
-      Math.round(cardW * 0.60),          // left 60% (info is left-aligned, skip copyright)
-      Math.round(cardH * INFO_LINE_FRAC * 0.80), // 80% height (skip bottom frame border)
+      Math.round(cardX + cardW * 0.04),
+      Math.round(infoY + cardH * INFO_LINE_FRAC * 0.10),
+      Math.round(cardW * 0.60),
+      Math.round(cardH * INFO_LINE_FRAC * 0.80),
     )
 
     return { nameBar, infoLine }
@@ -186,5 +188,5 @@ export function useCamera() {
     }
   }, [])
 
-  return { videoRef, isActive, error, start, stop, capture, torch, toggleTorch, zoom, zoomRange, setZoomLevel }
+  return { videoRef, boxRef, isActive, error, start, stop, capture, torch, toggleTorch, zoom, zoomRange, setZoomLevel }
 }
