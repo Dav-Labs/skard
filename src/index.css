@@ -19,3 +19,25 @@ body {
   display: flex;
   flex-direction: column;
 }
+
+/* Zoom slider — larger thumb & track for touch */
+input[type="range"].zoom-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  height: 32px;
+}
+input[type="range"].zoom-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.25);
+}
+input[type="range"].zoom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #8b5cf6;
+  border: 2px solid white;
+  margin-top: -11px;
+}

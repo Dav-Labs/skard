@@ -122,7 +122,7 @@ export function CameraView({ onCapture, isProcessing }: Props) {
             step={0.1}
             value={zoom}
             onChange={(e) => setZoomLevel(parseFloat(e.target.value))}
-            className="flex-1 h-1 accent-violet-500"
+            className="flex-1 zoom-slider"
           />
           <span className="text-xs text-white/70">{zoom.toFixed(1)}x</span>
         </div>
