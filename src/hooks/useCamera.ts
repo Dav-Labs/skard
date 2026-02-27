@@ -17,7 +17,7 @@ export function useCamera() {
   const streamRef = useRef<MediaStream | null>(null)
   const [isActive, setIsActive] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [torch, setTorch] = useState(true)
+  const [torch, setTorch] = useState(() => localStorage.getItem('skard:torch') === 'on')
   const [zoom, setZoom] = useState(1)
   const [zoomRange, setZoomRange] = useState<{ min: number; max: number } | null>(null)
 
@@ -42,11 +42,14 @@ export function useCamera() {
       if (caps.zoom) {
         setZoomRange({ min: caps.zoom.min, max: caps.zoom.max })
       }
-      // Turn on torch for stand lighting — best-effort, not all devices support it
-      try {
-        await track.applyConstraints({ advanced: [{ torch: true } as MediaTrackConstraintSet] })
-      } catch {
-        // Torch not supported on this device — ignore
+      // Apply saved torch preference — best-effort, not all devices support it
+      const savedTorch = localStorage.getItem('skard:torch') === 'on'
+      if (savedTorch) {
+        try {
+          await track.applyConstraints({ advanced: [{ torch: true } as MediaTrackConstraintSet] })
+        } catch {
+          // Torch not supported on this device — ignore
+        }
       }
       setIsActive(true)
     } catch (err) {
@@ -162,6 +165,7 @@ export function useCamera() {
     try {
       await track.applyConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] })
       setTorch(next)
+      localStorage.setItem('skard:torch', next ? 'on' : 'off')
     } catch {
       // Torch not supported
     }
