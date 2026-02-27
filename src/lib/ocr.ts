@@ -115,7 +115,7 @@ export function preprocessImage(canvas: HTMLCanvasElement, invertPolarity = fals
   // Trim up to 40% max from each edge to avoid eating into text.
   const BLACK_THRESH = 0.50
   const MAX_TRIM_Y = 0.40   // aggressive vertical trim (clear frame bands)
-  const MAX_TRIM_X = 0.08   // conservative horizontal trim (preserve text)
+  const MAX_TRIM_X = 0.02   // minimal horizontal trim (preserve thin letters like I)
   let top = 0, bottom = h - 1, left = 0, right = w - 1
 
   // Trim top rows (skip noisy gaps)
