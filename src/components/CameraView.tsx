@@ -59,7 +59,7 @@ export function CameraView({ onCapture, isProcessing }: Props) {
         )}
       </div>
 
-      <div className="p-4 flex justify-center">
+      <div className="absolute bottom-6 left-0 right-0 flex justify-center z-10">
         <button
           onClick={handleCapture}
           disabled={!isActive || isProcessing}
