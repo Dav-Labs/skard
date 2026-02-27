@@ -99,7 +99,7 @@ export function CameraView({ onCapture, isProcessing }: Props) {
       {zoomRange && zoomRange.max > zoomRange.min && (
         <div className="absolute bottom-28 left-0 right-0 flex justify-center items-center gap-2 px-6 z-10">
           <button
-            onClick={() => setZoomLevel(Math.max(zoomRange.min, zoom - 0.5))}
+            onClick={() => setZoomLevel(Math.max(zoomRange.min, zoom - 0.1))}
             className="w-10 h-10 rounded-full bg-gray-700/80 text-white text-xl font-bold flex items-center justify-center"
           >
             -
@@ -114,7 +114,7 @@ export function CameraView({ onCapture, isProcessing }: Props) {
             className="flex-1 zoom-slider"
           />
           <button
-            onClick={() => setZoomLevel(Math.min(Math.min(zoomRange.max, 10), zoom + 0.5))}
+            onClick={() => setZoomLevel(Math.min(Math.min(zoomRange.max, 10), zoom + 0.1))}
             className="w-10 h-10 rounded-full bg-gray-700/80 text-white text-xl font-bold flex items-center justify-center"
           >
             +

@@ -136,10 +136,10 @@ export function useCamera() {
     const barH = cardH * NAME_BAR_FRAC
 
     const nameBar = extractRegion(video,
-      Math.round(barX + barW * 0.08),   // skip left frame edge + decoration
-      Math.round(barY + barH * 0.25),   // skip top frame border (deeper inset for 18% bar)
-      Math.round(barW * 0.62),           // stop well before mana cost on right
-      Math.round(barH * 0.35),           // tight crop: just the name text, skip frame borders
+      Math.round(barX + barW * 0.02),   // minimal left inset
+      Math.round(barY + barH * 0.10),   // small top inset
+      Math.round(barW * 0.90),           // capture nearly full width (border trim cleans edges)
+      Math.round(barH * 0.65),           // generous height (border trim cleans top/bottom)
     )
 
     // --- Info line (bottom 6% of card) ---
