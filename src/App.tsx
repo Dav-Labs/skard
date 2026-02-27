@@ -35,10 +35,10 @@ function App() {
   const handleCapture = useCallback(async (canvas: HTMLCanvasElement) => {
     setState({ view: 'processing' })
     try {
-      const cardName = await recognizeCardName(canvas)
+      const { name: cardName, raw: ocrRaw } = await recognizeCardName(canvas)
 
       if (!cardName) {
-        setState({ view: 'no-match', ocrText: '' })
+        setState({ view: 'no-match', ocrText: ocrRaw })
         return
       }
 
@@ -48,8 +48,8 @@ function App() {
       } else {
         setState({ view: 'no-match', ocrText: cardName })
       }
-    } catch {
-      setState({ view: 'no-match', ocrText: '' })
+    } catch (err) {
+      setState({ view: 'no-match', ocrText: String(err) })
     }
   }, [])
 
