@@ -110,33 +110,38 @@ export function preprocessImage(canvas: HTMLCanvasElement, invertPolarity = fals
     }
   }
 
-  // Step 4: Trim border rows/columns that are >70% black (frame decorations)
-  const BLACK_THRESH = 0.70
+  // Step 4: Trim border rows/columns that are >40% black (frame decorations).
+  // Don't stop at the first light row — noisy frame texture has gaps.
+  // Trim up to 40% max from each edge to avoid eating into text.
+  const BLACK_THRESH = 0.40
+  const MAX_TRIM_FRAC = 0.40
   let top = 0, bottom = h - 1, left = 0, right = w - 1
 
-  // Trim top rows
-  for (let y = 0; y < h; y++) {
+  // Trim top rows (skip noisy gaps)
+  const maxTrimY = Math.floor(h * MAX_TRIM_FRAC)
+  for (let y = 0; y < maxTrimY; y++) {
     let blackCount = 0
     for (let x = 0; x < w; x++) if (thresholded[y * w + x] === 0) blackCount++
-    if (blackCount / w > BLACK_THRESH) top = y + 1; else break
+    if (blackCount / w > BLACK_THRESH) top = y + 1
   }
   // Trim bottom rows
-  for (let y = h - 1; y >= top; y--) {
+  for (let y = h - 1; y >= h - maxTrimY; y--) {
     let blackCount = 0
     for (let x = 0; x < w; x++) if (thresholded[y * w + x] === 0) blackCount++
-    if (blackCount / w > BLACK_THRESH) bottom = y - 1; else break
+    if (blackCount / w > BLACK_THRESH) bottom = y - 1
   }
   // Trim left columns
-  for (let x = 0; x < w; x++) {
+  const maxTrimX = Math.floor(w * MAX_TRIM_FRAC)
+  for (let x = 0; x < maxTrimX; x++) {
     let blackCount = 0
     for (let y = top; y <= bottom; y++) if (thresholded[y * w + x] === 0) blackCount++
-    if (blackCount / (bottom - top + 1) > BLACK_THRESH) left = x + 1; else break
+    if (blackCount / (bottom - top + 1) > BLACK_THRESH) left = x + 1
   }
   // Trim right columns
-  for (let x = w - 1; x >= left; x--) {
+  for (let x = w - 1; x >= w - maxTrimX; x--) {
     let blackCount = 0
     for (let y = top; y <= bottom; y++) if (thresholded[y * w + x] === 0) blackCount++
-    if (blackCount / (bottom - top + 1) > BLACK_THRESH) right = x - 1; else break
+    if (blackCount / (bottom - top + 1) > BLACK_THRESH) right = x - 1
   }
 
   const trimW = Math.max(1, right - left + 1)
