@@ -33,6 +33,13 @@ export function useCamera() {
         videoRef.current.srcObject = stream
         await videoRef.current.play()
       }
+      // Turn on torch for stand lighting — best-effort, not all devices support it
+      const track = stream.getVideoTracks()[0]
+      try {
+        await track.applyConstraints({ advanced: [{ torch: true } as MediaTrackConstraintSet] })
+      } catch {
+        // Torch not supported on this device — ignore
+      }
       setIsActive(true)
     } catch (err) {
       setError(
