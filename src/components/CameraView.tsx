@@ -73,39 +73,23 @@ export function CameraView({ onCapture, isProcessing }: Props) {
               {(['tl','tr','bl','br'] as const).map((corner) => (
                 <div
                   key={corner}
-                  className="absolute w-6 h-6 border-violet-400"
+                  className="absolute w-8 h-8 border-white"
                   style={{
-                    top:    corner.startsWith('t') ? 0 : 'auto',
-                    bottom: corner.startsWith('b') ? 0 : 'auto',
-                    left:   corner.endsWith('l')   ? 0 : 'auto',
-                    right:  corner.endsWith('r')   ? 0 : 'auto',
-                    borderTopWidth:    corner.startsWith('t') ? 2 : 0,
-                    borderBottomWidth: corner.startsWith('b') ? 2 : 0,
-                    borderLeftWidth:   corner.endsWith('l')   ? 2 : 0,
-                    borderRightWidth:  corner.endsWith('r')   ? 2 : 0,
+                    top:    corner.startsWith('t') ? -2 : 'auto',
+                    bottom: corner.startsWith('b') ? -2 : 'auto',
+                    left:   corner.endsWith('l')   ? -2 : 'auto',
+                    right:  corner.endsWith('r')   ? -2 : 'auto',
+                    borderTopWidth:    corner.startsWith('t') ? 3 : 0,
+                    borderBottomWidth: corner.startsWith('b') ? 3 : 0,
+                    borderLeftWidth:   corner.endsWith('l')   ? 3 : 0,
+                    borderRightWidth:  corner.endsWith('r')   ? 3 : 0,
+                    borderRadius: corner === 'tl' ? '8px 0 0 0'
+                      : corner === 'tr' ? '0 8px 0 0'
+                      : corner === 'bl' ? '0 0 0 8px'
+                      : '0 0 8px 0',
                   }}
                 />
               ))}
-
-              {/* Name bar highlight — top 18% of card */}
-              <div
-                className="absolute left-0 right-0 top-0 border border-violet-400/50 border-dashed"
-                style={{ height: '18%' }}
-              >
-                <span className="absolute bottom-1 left-2 text-xs text-violet-300/70">
-                  name
-                </span>
-              </div>
-
-              {/* Info line highlight — bottom 6% of card */}
-              <div
-                className="absolute left-0 bottom-0 border border-violet-400/50 border-dashed"
-                style={{ height: '6%', width: '60%' }}
-              >
-                <span className="absolute top-0 left-2 text-xs text-violet-300/70" style={{ fontSize: '0.55rem' }}>
-                  info
-                </span>
-              </div>
             </div>
           </div>
         )}
