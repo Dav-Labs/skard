@@ -18,6 +18,8 @@ export function useCamera() {
   const [isActive, setIsActive] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [torch, setTorch] = useState(true)
+  const [zoom, setZoom] = useState(1)
+  const [zoomRange, setZoomRange] = useState<{ min: number; max: number } | null>(null)
 
   const start = useCallback(async () => {
     try {
@@ -34,8 +36,13 @@ export function useCamera() {
         videoRef.current.srcObject = stream
         await videoRef.current.play()
       }
-      // Turn on torch for stand lighting — best-effort, not all devices support it
       const track = stream.getVideoTracks()[0]
+      // Detect zoom range from camera capabilities
+      const caps = track.getCapabilities() as MediaTrackCapabilities & { zoom?: { min: number; max: number; step: number } }
+      if (caps.zoom) {
+        setZoomRange({ min: caps.zoom.min, max: caps.zoom.max })
+      }
+      // Turn on torch for stand lighting — best-effort, not all devices support it
       try {
         await track.applyConstraints({ advanced: [{ torch: true } as MediaTrackConstraintSet] })
       } catch {
@@ -136,6 +143,18 @@ export function useCamera() {
     return { nameBar, infoLine }
   }, [isActive])
 
+  const setZoomLevel = useCallback(async (level: number) => {
+    const track = streamRef.current?.getVideoTracks()[0]
+    if (!track || !zoomRange) return
+    const clamped = Math.min(zoomRange.max, Math.max(zoomRange.min, level))
+    try {
+      await track.applyConstraints({ advanced: [{ zoom: clamped } as MediaTrackConstraintSet] })
+      setZoom(clamped)
+    } catch {
+      // Zoom not supported
+    }
+  }, [zoomRange])
+
   const toggleTorch = useCallback(async () => {
     const track = streamRef.current?.getVideoTracks()[0]
     if (!track) return
@@ -154,5 +173,5 @@ export function useCamera() {
     }
   }, [])
 
-  return { videoRef, isActive, error, start, stop, capture, torch, toggleTorch }
+  return { videoRef, isActive, error, start, stop, capture, torch, toggleTorch, zoom, zoomRange, setZoomLevel }
 }

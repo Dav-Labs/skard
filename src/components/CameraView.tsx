@@ -11,7 +11,7 @@ interface Props {
 const CARD_ASPECT = 63 / 88 // width / height ≈ 0.716
 
 export function CameraView({ onCapture, isProcessing }: Props) {
-  const { videoRef, isActive, error, start, capture, torch, toggleTorch } = useCamera()
+  const { videoRef, isActive, error, start, capture, torch, toggleTorch, zoom, zoomRange, setZoomLevel } = useCamera()
 
   useEffect(() => {
     start()
@@ -110,6 +110,23 @@ export function CameraView({ onCapture, isProcessing }: Props) {
           </div>
         )}
       </div>
+
+      {/* Zoom slider */}
+      {zoomRange && zoomRange.max > zoomRange.min && (
+        <div className="absolute bottom-28 left-0 right-0 flex justify-center items-center gap-3 px-10 z-10">
+          <span className="text-xs text-white/70">1x</span>
+          <input
+            type="range"
+            min={zoomRange.min}
+            max={Math.min(zoomRange.max, 10)}
+            step={0.1}
+            value={zoom}
+            onChange={(e) => setZoomLevel(parseFloat(e.target.value))}
+            className="flex-1 h-1 accent-violet-500"
+          />
+          <span className="text-xs text-white/70">{zoom.toFixed(1)}x</span>
+        </div>
+      )}
 
       <div className="absolute bottom-6 left-0 right-0 flex justify-center items-center gap-6 z-10">
         <button
