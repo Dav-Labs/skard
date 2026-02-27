@@ -91,7 +91,7 @@ export function useCamera() {
     const cardH = boxH_css * scale
 
     // --- Helper to extract a region to a canvas ---
-    function extractRegion(sx: number, sy: number, sw: number, sh: number): HTMLCanvasElement {
+    function extractRegion(src: HTMLVideoElement, sx: number, sy: number, sw: number, sh: number): HTMLCanvasElement {
       const outScale = Math.min(1, MAX_OUT_WIDTH / sw)
       const outW = Math.round(sw * outScale)
       const outH = Math.round(sh * outScale)
@@ -99,7 +99,7 @@ export function useCamera() {
       c.width = outW
       c.height = outH
       const ctx = c.getContext('2d')!
-      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, outW, outH)
+      ctx.drawImage(src, sx, sy, sw, sh, 0, 0, outW, outH)
       return c
     }
 
@@ -109,7 +109,7 @@ export function useCamera() {
     const barW = cardW
     const barH = cardH * NAME_BAR_FRAC
 
-    const nameBar = extractRegion(
+    const nameBar = extractRegion(video,
       Math.round(barX + barW * 0.08),   // skip left frame edge + decoration
       Math.round(barY + barH * 0.15),   // skip top frame border
       Math.round(barW * 0.62),           // stop well before mana cost on right
@@ -118,7 +118,7 @@ export function useCamera() {
 
     // --- Info line (bottom 6% of card) ---
     const infoY = cardY + cardH * (1 - INFO_LINE_FRAC)
-    const infoLine = extractRegion(
+    const infoLine = extractRegion(video,
       Math.round(cardX + cardW * 0.04), // left inset 4% (skip frame edge)
       Math.round(infoY + cardH * INFO_LINE_FRAC * 0.10), // skip top border
       Math.round(cardW * 0.60),          // left 60% (info is left-aligned, skip copyright)
