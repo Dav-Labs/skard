@@ -45,10 +45,10 @@ export function useCamera() {
     const vw = video.videoWidth
     const vh = video.videoHeight
 
-    // Crop top ~15% of frame — enough tolerance for handheld alignment
-    // without capturing so much that noise from artwork dominates
+    // Crop top ~10% of frame — captures name bar with minimal art below it.
+    // PSM SINGLE_LINE handles the rest; keeping art out reduces segmentation noise.
     const cropY = Math.round(vh * 0.02)
-    const cropH = Math.round(vh * 0.15)
+    const cropH = Math.round(vh * 0.10)
 
     // Cap width at 1200px so preprocessImage never gets a massive 4K image.
     // Tesseract + 3x upscale on a 3840px-wide crop would be ~11k px and hang.

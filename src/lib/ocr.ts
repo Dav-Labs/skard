@@ -1,10 +1,15 @@
-import { createWorker, type Worker } from 'tesseract.js'
+import { createWorker, PSM, type Worker } from 'tesseract.js'
 
 let workerReady: Promise<Worker> | null = null
 
 export function preloadWorker() {
   if (!workerReady) {
-    workerReady = createWorker('eng').catch((err) => {
+    workerReady = createWorker('eng').then(async (w) => {
+      // SINGLE_LINE: the whole image is one text line — stops Tesseract reading
+      // card art below the name bar as additional text regions.
+      await w.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_LINE })
+      return w
+    }).catch((err) => {
       workerReady = null
       throw err
     })
