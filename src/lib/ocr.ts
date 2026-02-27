@@ -5,7 +5,7 @@ let workerReady: Promise<Worker> | null = null
 export function preloadWorker() {
   if (!workerReady) {
     workerReady = createWorker('eng').catch((err) => {
-      workerReady = null
+      workerReady = null // allow retry on next scan
       throw err
     })
   }
@@ -14,13 +14,13 @@ export function preloadWorker() {
 
 export function preprocessImage(canvas: HTMLCanvasElement, invertPolarity = false): HTMLCanvasElement {
   const srcCtx = canvas.getContext('2d')!
-  const srcData = srcCtx.getImageData(0, 0, canvas.width, canvas.height)
-  const srcPixels = srcData.data
-
+  const { data: srcPixels } = srcCtx.getImageData(0, 0, canvas.width, canvas.height)
   const w = canvas.width
   const h = canvas.height
 
   // Step 1: Grayscale
+  // NOTE: No sharpening — sharpening amplifies foil/reflective surface noise into
+  // high-frequency artifacts that adaptive threshold misreads as text characters.
   const gray = new Uint8Array(w * h)
   for (let i = 0; i < srcPixels.length; i += 4) {
     gray[i / 4] = Math.round(
@@ -28,23 +28,12 @@ export function preprocessImage(canvas: HTMLCanvasElement, invertPolarity = fals
     )
   }
 
-  // Step 2: Sharpen — Laplacian 3×3 (center=5, NSEW=-1)
-  const sharpened = new Uint8Array(w * h)
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const i = y * w + x
-      const top = y > 0     ? gray[(y - 1) * w + x] : gray[i]
-      const bot = y < h - 1 ? gray[(y + 1) * w + x] : gray[i]
-      const lft = x > 0     ? gray[y * w + x - 1]   : gray[i]
-      const rgt = x < w - 1 ? gray[y * w + x + 1]   : gray[i]
-      sharpened[i] = Math.max(0, Math.min(255, gray[i] * 5 - top - bot - lft - rgt))
-    }
-  }
+  const source = invertPolarity ? gray.map((v) => 255 - v) : gray
 
-  const source = invertPolarity ? sharpened.map((v) => 255 - v) : sharpened
-
-  // Step 3: Adaptive threshold
-  const windowSize = Math.max(15, Math.round(w / 30))
+  // Step 2: Adaptive threshold — window sized to roughly one character width
+  // C=8: pixels must be ≥8 gray levels darker than local mean to count as text;
+  // keeps noise and smooth foil gradients from registering as ink.
+  const windowSize = Math.max(15, Math.round(w / 40))
   const half = Math.floor(windowSize / 2)
   const thresholded = new Uint8Array(w * h)
 
@@ -57,7 +46,7 @@ export function preprocessImage(canvas: HTMLCanvasElement, invertPolarity = fals
     }
   }
 
-  const C = 6
+  const C = 8
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const x1 = Math.max(0, x - half), y1 = Math.max(0, y - half)
@@ -72,7 +61,7 @@ export function preprocessImage(canvas: HTMLCanvasElement, invertPolarity = fals
     }
   }
 
-  // Step 4: 3x upscale
+  // Step 3: 3x upscale — pushes character height into Tesseract's sweet spot (20–30px)
   const scale = 3
   const out = document.createElement('canvas')
   out.width = w * scale
@@ -99,8 +88,8 @@ export function preprocessImage(canvas: HTMLCanvasElement, invertPolarity = fals
 }
 
 function bestLine(raw: string): string {
-  // Pick the longest alpha-only line — handles cases where mana cost or
-  // other symbols appear on a different line than the card name
+  // Take the longest alpha-only line; handles cases where a mana cost row or
+  // artifact noise appears on a different line than the actual card name.
   return raw
     .split('\n')
     .map((l) => l.replace(/[^a-zA-Z\s\-',]/g, '').trim())
@@ -110,17 +99,17 @@ function bestLine(raw: string): string {
 export async function recognizeCardName(canvas: HTMLCanvasElement): Promise<{ name: string; raw: string }> {
   const worker = await preloadWorker()
 
+  // Primary: dark text on light background (standard frames)
   const { data: primary } = await worker.recognize(preprocessImage(canvas))
   const primaryName = bestLine(primary.text)
 
   if (primaryName.length >= 3) return { name: primaryName, raw: primary.text.trim() }
 
-  // Inverted polarity fallback (light-text-on-dark frames)
+  // Fallback: inverted polarity for light-text-on-dark frames (some promos/foils)
   const { data: fallback } = await worker.recognize(preprocessImage(canvas, true))
   const fallbackName = bestLine(fallback.text)
 
-  if (fallbackName.length > primaryName.length) {
-    return { name: fallbackName, raw: fallback.text.trim() }
-  }
-  return { name: primaryName, raw: primary.text.trim() }
+  return fallbackName.length > primaryName.length
+    ? { name: fallbackName, raw: fallback.text.trim() }
+    : { name: primaryName, raw: primary.text.trim() }
 }
