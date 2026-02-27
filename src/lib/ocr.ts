@@ -1,48 +1,74 @@
-import { createWorker, type Worker } from 'tesseract.js'
+import { createWorker, PSM, type Worker } from 'tesseract.js'
 
 let workerReady: Promise<Worker> | null = null
 
 export function preloadWorker() {
   if (!workerReady) {
-    workerReady = createWorker('eng')
+    workerReady = createWorker('eng').then(async (w) => {
+      await w.setParameters({
+        tessedit_pageseg_mode: PSM.SINGLE_LINE,
+        // Restrict to characters that appear in card names
+        tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz -',.",
+      })
+      return w
+    })
   }
   return workerReady
 }
 
-export function preprocessImage(canvas: HTMLCanvasElement): HTMLCanvasElement {
+export function preprocessImage(canvas: HTMLCanvasElement, invertPolarity = false): HTMLCanvasElement {
   const src = canvas
   const srcCtx = src.getContext('2d')!
   const srcData = srcCtx.getImageData(0, 0, src.width, src.height)
   const srcPixels = srcData.data
 
-  // Step 1: Convert to grayscale in-place
-  const grayValues = new Uint8Array(src.width * src.height)
+  const w = src.width
+  const h = src.height
+
+  // Step 1: Grayscale
+  const gray = new Uint8Array(w * h)
   for (let i = 0; i < srcPixels.length; i += 4) {
-    grayValues[i / 4] = Math.round(
+    gray[i / 4] = Math.round(
       0.299 * srcPixels[i] + 0.587 * srcPixels[i + 1] + 0.114 * srcPixels[i + 2]
     )
   }
 
-  // Step 2: Adaptive threshold (local mean over a window)
-  // This handles uneven lighting much better than global contrast
-  const w = src.width
-  const h = src.height
-  const windowSize = Math.max(15, Math.round(w / 40)) // adaptive window
+  // Step 2: Sharpen — helps with handheld blur at ~6 inches
+  // Simple 3×3 Laplacian sharpen kernel: center=5, NSEW=-1
+  const sharpened = new Uint8Array(w * h)
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x
+      const top = y > 0     ? gray[(y - 1) * w + x] : gray[i]
+      const bot = y < h - 1 ? gray[(y + 1) * w + x] : gray[i]
+      const lft = x > 0     ? gray[y * w + x - 1]   : gray[i]
+      const rgt = x < w - 1 ? gray[y * w + x + 1]   : gray[i]
+      sharpened[i] = Math.max(0, Math.min(255, gray[i] * 5 - top - bot - lft - rgt))
+    }
+  }
+
+  // Optionally invert polarity before thresholding (handles light-text-on-dark cards)
+  const source = invertPolarity
+    ? sharpened.map((v) => 255 - v)
+    : sharpened
+
+  // Step 3: Adaptive threshold (local mean via integral image)
+  const windowSize = Math.max(15, Math.round(w / 30))
   const half = Math.floor(windowSize / 2)
   const thresholded = new Uint8Array(w * h)
 
-  // Build integral image for fast local mean
   const integral = new Float64Array((w + 1) * (h + 1))
   for (let y = 0; y < h; y++) {
     let rowSum = 0
     for (let x = 0; x < w; x++) {
-      rowSum += grayValues[y * w + x]
+      rowSum += source[y * w + x]
       integral[(y + 1) * (w + 1) + (x + 1)] =
         rowSum + integral[y * (w + 1) + (x + 1)]
     }
   }
 
-  const C = 8 // threshold bias — pixels must be this much darker than local mean to be "black"
+  // C=6: pixels this much darker than local mean → black text
+  const C = 6
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const x1 = Math.max(0, x - half)
@@ -56,12 +82,12 @@ export function preprocessImage(canvas: HTMLCanvasElement): HTMLCanvasElement {
         integral[(y2 + 1) * (w + 1) + x1] +
         integral[y1 * (w + 1) + x1]
       const mean = sum / area
-      thresholded[y * w + x] = grayValues[y * w + x] < mean - C ? 0 : 255
+      thresholded[y * w + x] = source[y * w + x] < mean - C ? 0 : 255
     }
   }
 
-  // Step 3: Upscale 2x for better OCR on small text
-  const scale = 2
+  // Step 4: Upscale 3x — more pixels for Tesseract to work with
+  const scale = 3
   const out = document.createElement('canvas')
   out.width = w * scale
   out.height = h * scale
@@ -72,12 +98,9 @@ export function preprocessImage(canvas: HTMLCanvasElement): HTMLCanvasElement {
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const val = thresholded[y * w + x]
-      // Write a scale x scale block
       for (let dy = 0; dy < scale; dy++) {
         for (let dx = 0; dx < scale; dx++) {
-          const oy = y * scale + dy
-          const ox = x * scale + dx
-          const oi = (oy * out.width + ox) * 4
+          const oi = ((y * scale + dy) * out.width + (x * scale + dx)) * 4
           outPixels[oi] = val
           outPixels[oi + 1] = val
           outPixels[oi + 2] = val
@@ -91,12 +114,28 @@ export function preprocessImage(canvas: HTMLCanvasElement): HTMLCanvasElement {
   return out
 }
 
+function cleanText(raw: string): string {
+  const firstLine = raw.trim().split('\n')[0]?.trim() || ''
+  return firstLine.replace(/[^a-zA-Z\s\-',]/g, '').trim()
+}
+
 export async function recognizeCardName(imageData: string | HTMLCanvasElement): Promise<string> {
   const w = await preloadWorker()
-  const { data } = await w.recognize(imageData)
-  const text = data.text.trim()
-  // Take the first line and clean it up
-  const firstLine = text.split('\n')[0]?.trim() || ''
-  // Strip non-alpha noise but keep spaces, hyphens, apostrophes, commas
-  return firstLine.replace(/[^a-zA-Z\s\-',]/g, '').trim()
+
+  // Primary attempt: dark-text-on-light (standard card frames)
+  const processed = typeof imageData === 'string' ? imageData : preprocessImage(imageData as HTMLCanvasElement)
+  const { data: primary } = await w.recognize(processed)
+  const primaryResult = cleanText(primary.text)
+
+  if (primaryResult.length >= 3) return primaryResult
+
+  // Fallback: invert polarity for light-text-on-dark frames (mythic, special frames)
+  if (typeof imageData !== 'string') {
+    const inverted = preprocessImage(imageData as HTMLCanvasElement, true)
+    const { data: fallback } = await w.recognize(inverted)
+    const fallbackResult = cleanText(fallback.text)
+    if (fallbackResult.length > primaryResult.length) return fallbackResult
+  }
+
+  return primaryResult
 }

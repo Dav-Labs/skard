@@ -45,11 +45,10 @@ export function useCamera() {
     const vw = video.videoWidth
     const vh = video.videoHeight
 
-    // Crop top ~12% of frame — tighter crop on just the card name bar
-    // With the stand at a fixed distance, the card name occupies a smaller
-    // portion of the frame than when holding the phone close
-    const cropY = Math.round(vh * 0.03) // skip very top edge
-    const cropHeight = Math.round(vh * 0.10)
+    // Crop top ~20% of frame — wide enough to catch the name bar
+    // even when the card isn't perfectly aligned at ~6 inches handheld
+    const cropY = Math.round(vh * 0.02)
+    const cropHeight = Math.round(vh * 0.20)
     const canvas = document.createElement('canvas')
     canvas.width = vw
     canvas.height = cropHeight
